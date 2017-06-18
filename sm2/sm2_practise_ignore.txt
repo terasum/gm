@@ -1,0 +1,236 @@
+package sm2
+
+import (
+	"fmt"
+	"github.com/terasum/gm/guomic"
+	"math/big"
+	"encoding/asn1"
+	"github.com/terasum/gm/common"
+	"io"
+	"github.com/terasum/gm/sm2/sm2p256v1"
+	"crypto/rand"
+)
+
+func PreHandleRecommend(data,pubX,pubY []byte)([]byte){
+	h := guomic.New()
+	ENTLA := "0080"
+	h.Write(common.Hex2Bytes(ENTLA))
+	userId := "31323334353637383132333435363738"
+	h.Write(common.Hex2Bytes(userId))
+	fmt.Println(userId)
+	a:= "FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFC"
+	h.Write(common.Hex2Bytes(a))
+	b:= "28E9FA9E9D9F5E344D5A9E4BCF6509A7F39789F515AB8F92DDBCBD414D940E93"
+	h.Write(common.Hex2Bytes(b))
+	xG := "32C4AE2C1F1981195F9904466A39C9948FE30BBFF2660BE1715A4589334C74C7"
+	h.Write(common.Hex2Bytes(xG))
+	yG := "BC3736A2F4F6779C59BDCEE36B692153D0A9877CC62A474002DF32E52139F0A0"
+	h.Write(common.Hex2Bytes(yG))
+	h.Write(pubX)
+	h.Write(pubY)
+	Za := h.Sum(nil)
+	fmt.Println("Za",common.Bytes2Hex(Za))
+	//修改为sm3hash方法
+	M_ := append(Za,data...)
+
+	h2 := guomic.New()
+	fmt.Println("M_",common.Bytes2Hex(M_))
+	h2.Write(M_)
+	hash := h2.Sum(nil)
+	return hash
+}
+
+func PreHandleSTAND(data,pubX,pubY []byte)([]byte){
+	h := guomic.New()
+	ENTLA := "0090"
+	h.Write(common.Hex2Bytes(ENTLA))
+	userId := "414C494345313233405941484F4F2E434F4D"
+	h.Write(common.Hex2Bytes(userId))
+	fmt.Println(userId)
+	a:= "787968B4FA32C3FD2417842E73BBFEFF2F3C848B6831D7E0EC65228B3937E498"
+	h.Write(common.Hex2Bytes(a))
+	b:= "63E4C6D3B23B0C849CF84241484BFE48F61D59A5B16BA06E6E12D1DA27C5249A"
+	h.Write(common.Hex2Bytes(b))
+	xG := "421DEBD61B62EAB6746434EBC3CC315E32220B3BADD50BDC4C4E6C147FEDD43D"
+	h.Write(common.Hex2Bytes(xG))
+	yG := "0680512BCBB42C07D47349D2153B70C4E5D7FDFCBFA36EA1A85841B9E46E09A2"
+	h.Write(common.Hex2Bytes(yG))
+	h.Write(pubX)
+	h.Write(pubY)
+	Za := h.Sum(nil)
+	fmt.Println("Za",common.Bytes2Hex(Za))
+	//修改为sm3hash方法
+	M_ := append(Za,data...)
+
+	h2 := guomic.New()
+	fmt.Println("M_",common.Bytes2Hex(M_))
+	h2.Write(M_)
+	hash := h2.Sum(nil)
+	return hash
+}
+
+func DerToSignRS(der []byte)( *big.Int, *big.Int, error){
+	 a :=struct {
+		R, S *big.Int
+	}{}
+	_,err := asn1.Unmarshal(der,&a)
+	if err != nil{
+		return nil,nil,err
+	}
+	return a.R,a.S,nil
+}
+
+func GenerateKeyStand(c sm2p256v1.SM2Curve, rand io.Reader) (*PrivateKey, error){
+	k, err := randFieldElement(c, rand)
+	if err != nil {
+		return nil, err
+	}
+	privc,err  := guomic.GeneratePrivateKey(k.Bytes())
+	if err != nil{
+		return  nil,err
+	}
+	priv := new(PrivateKey)
+	priv.D = common.BytesToBig(privc.Key)
+	priv.PublicKey.SM2Curve = c
+	priv.PublicKey.X = common.BytesToBig(privc.PublicKey.X)
+	priv.PublicKey.Y = common.BytesToBig(privc.PublicKey.Y)
+	return priv, nil
+}
+
+func GenerateKeyRecommend(c sm2p256v1.SM2Curve, rand io.Reader) (*PrivateKey, error){
+	k, err := randFieldElement(c, rand)
+	if err != nil {
+		return nil, err
+	}
+	privc,err  := guomic.GeneratePrivateKeyRecommend(k.Bytes())
+	if err != nil{
+		return  nil,err
+	}
+	priv := new(PrivateKey)
+	priv.D = common.BytesToBig(privc.Key)
+	priv.PublicKey.SM2Curve = c
+	priv.PublicKey.X = common.BytesToBig(privc.PublicKey.X)
+	priv.PublicKey.Y = common.BytesToBig(privc.PublicKey.Y)
+	return priv, nil
+}
+func SignStand(priv,pubx,puby string, msg []byte) (r, s *big.Int, err error) {
+	fmt.Println("sign test")
+	privs := &PrivateKey{
+		PublicKey: PublicKey{
+			SM2Curve: sm2p256v1.SM2stand(),
+		},
+	}
+	privs.D,_ = new(big.Int).SetString(priv,16)
+	privs.PublicKey.X,_ = new(big.Int).SetString(pubx,16)
+	privs.PublicKey.Y,_ = new(big.Int).SetString(puby,16)
+
+	return signStand(rand.Reader,privs,msg)
+}
+func signStand(rand io.Reader, priv *PrivateKey, msg []byte) (r, s *big.Int, err error) {
+	privateKey := guomic.PrivateKey{
+		Key:priv.D.Bytes(),
+		PublicKey:*guomic.NewPubKey(priv.PublicKey.X.Bytes(),priv.PublicKey.Y.Bytes()),
+	}
+	// step 1. get private key da
+	// step 2. get public key pA da * G
+	// step 3. get Za
+	//step get e
+	e := PreHandleSTAND(msg,priv.PublicKey.X.Bytes(),priv.PublicKey.Y.Bytes())
+	fmt.Println("e ", common.Bytes2Hex(e))
+	sign,err := privateKey.Sign(e)
+	fmt.Println("sign",common.Bytes2Hex(sign))
+	fmt.Println("err",err)
+	return DerToSignRS(sign)
+
+}
+
+func VerifyStand(pubx, puby string, msg,signR,signS []byte) bool {
+	fmt.Println("veri test")
+	priv := &PrivateKey{
+		PublicKey: PublicKey{
+			SM2Curve: sm2p256v1.SM2stand(),
+		},
+	}
+	priv.PublicKey.X,_ = new(big.Int).SetString(pubx,16)
+	priv.PublicKey.Y,_ = new(big.Int).SetString(puby,16)
+	sign := struct {
+		R,S *big.Int
+	}{}
+	sign.R = common.BytesToBig(signR)
+	sign.S = common.BytesToBig(signS)
+	der,err := asn1.Marshal(sign)
+	if err != nil{
+		return false
+	}
+	return verifyStand(priv.Public(),msg,der)
+}
+
+func verifyStand(pub *PublicKey, msg []byte,sign []byte) bool {
+	// get eb
+	eb := PreHandleSTAND(msg,pub.X.Bytes(),pub.Y.Bytes())
+	fmt.Println("e ", common.Bytes2Hex(eb))
+	pubKey := guomic.NewPubKey(pub.X.Bytes(),pub.Y.Bytes())
+	bol,_ :=  pubKey.Verify(sign,eb)
+	return bol
+}
+
+func SignRecommend(priv,pubx,puby string, msg []byte) (r, s *big.Int, err error) {
+	fmt.Println("signrecommend")
+	privs := &PrivateKey{
+		PublicKey: PublicKey{
+			SM2Curve: sm2p256v1.SM2(),
+		},
+	}
+	privs.D,_ = new(big.Int).SetString(priv,16)
+	privs.PublicKey.X,_ = new(big.Int).SetString(pubx,16)
+	privs.PublicKey.Y,_ = new(big.Int).SetString(puby,16)
+
+	return signRecommend(rand.Reader,privs,msg)
+}
+func signRecommend(rand io.Reader, priv *PrivateKey, msg []byte) (r, s *big.Int, err error) {
+	privateKey := guomic.PrivateKey{
+		Key:priv.D.Bytes(),
+		PublicKey:*guomic.NewPubKey(priv.PublicKey.X.Bytes(),priv.PublicKey.Y.Bytes()),
+	}
+	// step 1. get private key da
+	// step 2. get public key pA da * G
+	// step 3. get Za
+	//step get e
+	e := PreHandleRecommend(msg,priv.PublicKey.X.Bytes(),priv.PublicKey.Y.Bytes())
+	fmt.Println("e ", common.Bytes2Hex(e))
+	sign,err := privateKey.SignRecommend(e)
+	fmt.Println("sign",common.Bytes2Hex(sign))
+	fmt.Println("err",err)
+	return DerToSignRS(sign)
+
+}
+
+func VerifyRecommend(pubx, puby string, msg,signR,signS []byte) bool {
+	fmt.Println("verifyrecommend")
+	priv := &PrivateKey{
+		PublicKey: PublicKey{
+			SM2Curve: sm2p256v1.SM2(),
+		},
+	}
+	priv.PublicKey.X,_ = new(big.Int).SetString(pubx,16)
+	priv.PublicKey.Y,_ = new(big.Int).SetString(puby,16)
+	sign := struct {
+		R,S *big.Int
+	}{}
+	sign.R = common.BytesToBig(signR)
+	sign.S = common.BytesToBig(signS)
+	der,err := asn1.Marshal(sign)
+	if err != nil{
+		return false
+	}
+	return verifyRecommend(priv.Public(),msg,der)
+}
+
+func verifyRecommend(pub *PublicKey, msg []byte,sign []byte) bool {
+	// get eb
+	eb := PreHandleRecommend(msg,pub.X.Bytes(),pub.Y.Bytes())
+	fmt.Println("e ", common.Bytes2Hex(eb))
+	pubKey := guomic.NewPubKey(pub.X.Bytes(),pub.Y.Bytes())
+	bol,_ :=  pubKey.VerifyRecommend(sign,eb)
+	return bol
+}
