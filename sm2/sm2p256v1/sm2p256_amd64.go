@@ -1,6 +1,11 @@
 package sm2p256v1
 
-import "math/big"
+import (
+	"math/big"
+	"fmt"
+	"hyperchain/common"
+	"crypto/elliptic"
+)
 
 type (
 	sm2p256Curve struct {
@@ -24,9 +29,33 @@ func initSM2P256() {
 	sm2p256.BitSize = 256
 }
 
+func initSM2P256Stand() {
+	// See FIPS 186-3, section D.2.3
+	sm2p256stand.SM2CurveParams = &SM2CurveParams{Name: "SM2P256stand"}
+	sm2p256stand.P, _ = new(big.Int).SetString("8542D69E4C044F18E8B92435BF6FF7DE457283915C45517D722EDB8B08F1DFC3", 16)
+	sm2p256stand.N, _ = new(big.Int).SetString("8542D69E4C044F18E8B92435BF6FF7DD297720630485628D5AE74EE7C32E79B7", 16)
+	sm2p256stand.A, _ = new(big.Int).SetString("787968B4FA32C3FD2417842E73BBFEFF2F3C848B6831D7E0EC65228B3937E498", 16)
+	sm2p256stand.B, _ = new(big.Int).SetString("63E4C6D3B23B0C849CF84241484BFE48F61D59A5B16BA06E6E12D1DA27C5249A", 16)
+	sm2p256stand.Gx, _ = new(big.Int).SetString("421DEBD61B62EAB6746434EBC3CC315E32220B3BADD50BDC4C4E6C147FEDD43D", 16)
+	sm2p256stand.Gy, _ = new(big.Int).SetString("0680512BCBB42C07D47349D2153B70C4E5D7FDFCBFA36EA1A85841B9E46E09A2", 16)
+	sm2p256stand.BitSize = 256
+}
 
-func (curve sm2p256Curve) Params() *SM2CurveParams {
+func (curve sm2p256Curve) SM2Params() *SM2CurveParams {
 	return curve.SM2CurveParams
+}
+
+// this is a fake method just for ans.1 marshal
+func (curve sm2p256Curve) Params() *elliptic.CurveParams {
+	return &elliptic.CurveParams{
+		P:curve.P,
+		N:curve.N,
+		B:curve.B,
+		Gx:curve.Gx,
+		Gy:curve.Gy,
+		BitSize:256,
+		Name:"SM2P256",
+	}
 }
 func (curve sm2p256Curve) IsOnCurve(x, y *big.Int) bool{
 	// y² = x³ - ax + b
@@ -248,6 +277,7 @@ func (curve sm2p256Curve) ScalarMult(Bx, By *big.Int, k []byte) (x, y *big.Int){
 // ScalarBaseMult returns k*G, where G is the base point of the group
 // and k is an integer in big-endian form.
 func (curve sm2p256Curve) ScalarBaseMult(k []byte) (x, y *big.Int){
+	fmt.Println(common.Bytes2Hex(curve.Gx.Bytes()),common.Bytes2Hex(curve.Gy.Bytes()))
 	return curve.ScalarMult(curve.Gx, curve.Gy, k)
 }
 

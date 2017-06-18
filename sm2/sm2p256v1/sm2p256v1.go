@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"sync"
 	"io"
+	"crypto/elliptic"
 )
 
 // A Curve represents a sm2 curve which a should be a big prime
@@ -20,7 +21,9 @@ type SM2CurveParams struct{
 
 type SM2Curve interface {
 	// Params returns the parameters for the curve.
-	Params() *SM2CurveParams
+	Params() *elliptic.CurveParams
+
+	SM2Params() *SM2CurveParams
 	// IsOnCurve reports whether the given (x,y) lies on the curve.
 	IsOnCurve(x, y *big.Int) bool
 	// Add returns the sum of (x1,y1) and (x2,y2)
@@ -37,16 +40,21 @@ type SM2Curve interface {
 var initonce sync.Once
 
 var sm2p256 sm2p256Curve
+var sm2p256stand sm2p256Curve
 
 func initAll() {
 	initSM2P256()
+	initSM2P256Stand()
 }
 
 func SM2()SM2Curve{
 		initonce.Do(initAll)
 		return sm2p256
 }
-
+func SM2stand()SM2Curve{
+		initonce.Do(initAll)
+		return sm2p256stand
+}
 
 
 var mask = []byte{0xff, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f}
