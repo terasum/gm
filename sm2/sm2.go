@@ -30,6 +30,7 @@ import (
 	"math/big"
 	"crypto/rand"
 	"fmt"
+	"runtime"
 )
 
 
@@ -230,7 +231,12 @@ func ParsePriKeyFromDer(der []byte, curveType int) (*PrivateKey, error) {
 	return GetPrivateKey(prkInfo.PrivateKey, curveType)
 }
 
-func GeneratePublicKey(x []byte,y []byte,curveType int)(*PublicKey,error){
+func GeneratePublicKey(x []byte,y []byte,curveType int)(retpub *PublicKey,reterr error){
+	defer func() { //必须要先声明defer，否则不能捕获到panic异常
+		if err := recover(); err != nil {
+			reterr = err.(runtime.Error)
+		}
+	}()
 	pubkey := new(PublicKey)
 	if curveType ==0 {
 		pubkey.param = GetSM2Test()
@@ -427,7 +433,12 @@ func (pub *PublicKey)getEC_KEY()(*C.EC_KEY,error){
 	return ec_key,nil
 }
 
-func (pubkey *PublicKey) Verify(sig, msg []byte) (bool, error) {
+func (pubkey *PublicKey) Verify(sig, msg []byte) (f bool,reterr error) {
+	defer func() { //必须要先声明defer，否则不能捕获到panic异常
+		if err := recover(); err != nil {
+			reterr = err.(runtime.Error)
+		}
+	}()
 	ec_key, err := pubkey.getEC_KEY()
 	dgst := pubkey.PreHandle(msg)
 	//fmt.Println("Za :",common.Bytes2Hex(dgst))
