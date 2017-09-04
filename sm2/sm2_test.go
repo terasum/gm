@@ -56,17 +56,14 @@ func BenchmarkPublicKey_Verify(b *testing.B) {
 	if err != nil{
 		b.Fatal(err)
 	}
+	sign,err := key.Sign([]byte("msg"))
+		if err != nil{
+			b.Fatal(err)
+		}
 	for i:=0;i<b.N;i++{
-		sign,err := key.Sign([]byte("msg"))
+		_,err := key.PublicKey.Verify(sign,[]byte("msg"))
 		if err != nil{
 			b.Fatal(err)
-		}
-		bool,err := key.PublicKey.Verify(sign,[]byte("msg"))
-		if err != nil{
-			b.Fatal(err)
-		}
-		if !bool{
-			b.Fatal(bool)
 		}
 	}
 }
@@ -114,11 +111,11 @@ func TestPublicKey_Verify2(t *testing.T) {
 	if err != nil{
 		t.Fatal(err)
 	}
-	t.Log(common.Bytes2Hex(pub.X.Bytes()))
-	t.Log(common.Bytes2Hex(pub.Y.Bytes()))
+	//t.Log(common.Bytes2Hex(pub.X.Bytes()))
+	//t.Log(common.Bytes2Hex(pub.Y.Bytes()))
 	msg := []byte("message digest");
 	sign := common.Hex2Bytes("xx3046022100AD20BE832596D355FD6E952210A833D59C68E1B54000756F48816E3A5A049C8B022100C2C988DF85B03B446D21CAD9C11445D11F67748F002CF6ACD0AEC55BBD8D1290")
 	bol,err := pub.Verify(sign,msg)
-	t.Log(bol)
-	t.Log(err)
+	assert.False(t,bol)
+	assert.NotNil(t,err)
 }
